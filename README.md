@@ -152,5 +152,6 @@ section_title
 ## Durum
 
 Kod yapısı tamamlandı. Doküman yükleme, ChromaDB ingest akışı ve PostgreSQL
-checkpointer kurulumu doğrulandı. OpenRouter API key eklendikten sonra gerçek
-chat modeliyle `python main.py test` çalıştırılarak son kontrol yapılmalıdır.
+checkpointer kurulumu doğrulandı. OpenRouter API key ile gerçek free chat ve
+free embedding akışı üzerinden `python main.py test` çalıştırıldı. Test çıktısı
+`test_output.txt` dosyasında görülebilir.
