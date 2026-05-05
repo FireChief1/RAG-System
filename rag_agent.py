@@ -84,14 +84,16 @@ class RagAgent:
         )
 
     def ask(self, question: str) -> str:
-        result = self.agent.invoke(
-            {"messages": [HumanMessage(content=question)]},
-            config={"configurable": {"thread_id": self.thread_id}},
-        )
-        messages = result.get("messages", [])
-        if not messages:
-            return "I could not produce an answer."
-        return messages[-1].content
+        for _ in range(2):
+            result = self.agent.invoke(
+                {"messages": [HumanMessage(content=question)]},
+                config={"configurable": {"thread_id": self.thread_id}},
+            )
+            messages = result.get("messages", [])
+            if messages and messages[-1].content.strip():
+                return messages[-1].content
+
+        return "I could not produce an answer."
 
     def close(self) -> None:
         self._checkpointer_context.__exit__(None, None, None)

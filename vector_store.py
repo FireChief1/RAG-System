@@ -10,10 +10,10 @@ except ImportError:
 
 import shutil
 
+import httpx
 from langchain_chroma import Chroma
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
-from langchain_openai import OpenAIEmbeddings
 
 from config import (
     CHROMA_DIR,
@@ -22,6 +22,44 @@ from config import (
     OPENROUTER_BASE_URL,
     load_settings,
 )
+
+
+class OpenRouterFreeEmbeddings(Embeddings):
+    def __init__(self, api_key: str, batch_size: int = 16):
+        self.api_key = api_key
+        self.batch_size = batch_size
+        self.endpoint = f"{OPENROUTER_BASE_URL}/embeddings"
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        embeddings: list[list[float]] = []
+        for start in range(0, len(texts), self.batch_size):
+            batch = texts[start : start + self.batch_size]
+            embeddings.extend(self._embed_batch(batch))
+        return embeddings
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed_batch([text])[0]
+
+    def _embed_batch(self, texts: list[str]) -> list[list[float]]:
+        response = httpx.post(
+            self.endpoint,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            json={"model": EMBEDDING_MODEL, "input": texts},
+            timeout=60,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        data = payload.get("data") or []
+
+        if len(data) != len(texts):
+            raise ValueError(
+                f"Expected {len(texts)} embeddings, received {len(data)}."
+            )
+
+        return [item["embedding"] for item in data]
 
 
 def get_embeddings() -> Embeddings:
@@ -33,11 +71,7 @@ def get_embeddings() -> Embeddings:
     if not EMBEDDING_MODEL.endswith(":free"):
         raise ValueError("Only OpenRouter free embedding models are allowed.")
 
-    return OpenAIEmbeddings(
-        model=EMBEDDING_MODEL,
-        openai_api_key=api_key,
-        openai_api_base=OPENROUTER_BASE_URL,
-    )
+    return OpenRouterFreeEmbeddings(api_key=api_key)
 
 
 def ingest_documents(
